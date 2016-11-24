@@ -1,0 +1,759 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "**Version 5.0** STEP-2 This template creates and installs a set of NetScalers configured as CloudBridges in a VPC. **WARNING** This template creates Amazon EC2 instance and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+
+	"Parameters" : {
+
+		"KeyPairName" : {
+			"Description" : "Public/private key pairs allow you to securely connect to your instance after it launches",
+			"Type" : "String"
+		},
+		"VPC" : {
+			"Description" : "ID of the VPC",
+			"Type" : "String"
+		},
+		"NSVPXInstanceType" : {
+			"Description" : "Amazon EC2 instance type for the NetScaler VPX Instances",
+			"Type" : "String",
+			"Default" : "m3.large",
+			"AllowedValues" : [ "m3.large", "m3.xlarge", "m3.2xlarge" ],
+			"ConstraintDescription" : "Only EBS Optimized instance types m3.large, m3.xlarge, and m3.2xlarge allowed"
+		},
+		"CBVPXInstanceType" : {
+			"Description" : "Amazon EC2 instance type for the CloudBridge VPX Instances",
+			"Type" : "String",
+			"Default" : "m3.large",
+			"AllowedValues" : [ "m3.large", "m3.xlarge", "m3.2xlarge", "c3.xlarge"],
+			"ConstraintDescription" : "Only m1.large instance type allowed"
+		},
+		"NS1VPXNameAZ1" : {
+			"Description" : "Host name of the Primary NetScaler located in AZ1 ",
+			"Type" : "String",
+			"Default" : "NS1VPXAZ1",
+			"MinLength" : "1",
+			"MaxLength" : "15",
+			"AllowedPattern" : "[a-zA-Z0-9]+"
+		},
+		"NS2VPXNameAZ1" : {
+			"Description" : "Host name of the Secondary NetScaler located in AZ1",
+			"Type" : "String",
+			"Default" : "NS2VPXAZ1",
+			"MinLength" : "1",
+			"MaxLength" : "15",
+			"AllowedPattern" : "[a-zA-Z0-9]+"
+		},		
+		"NS1VPXNameAZ2" : {
+			"Description" : "Host name of the Primary NetScaler located in AZ2 ",
+			"Type" : "String",
+			"Default" : "NS1VPXAZ2",
+			"MinLength" : "1",
+			"MaxLength" : "15",
+			"AllowedPattern" : "[a-zA-Z0-9]+"
+		},
+		"NS2VPXNameAZ2" : {
+			"Description" : "Host name of the Secondary NetScaler located in AZ2",
+			"Type" : "String",
+			"Default" : "NS2VPXAZ2",
+			"MinLength" : "1",
+			"MaxLength" : "15",
+			"AllowedPattern" : "[a-zA-Z0-9]+"
+		},		
+		"CBVPXNameAZ1" : {
+			"Description" : "Host name of the CloudBridge VPX located in AZ1 ",
+			"Type" : "String",
+			"Default" : "CBVPXAZ1",
+			"MinLength" : "1",
+			"MaxLength" : "15",
+			"AllowedPattern" : "[a-zA-Z0-9]+"
+		},
+		"CBVPXNameAZ2" : {
+			"Description" : "Host name of the Branch Repeater located in AZ2",
+			"Type" : "String",
+			"Default" : "CBVPXAZ2",
+			"MinLength" : "1",
+			"MaxLength" : "15",
+			"AllowedPattern" : "[a-zA-Z0-9]+"
+		},		
+		"DMZ1IP" : {
+			"Description" : "Fixed private IP for the NetScaler ENI located in the DMZ in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.1.10"
+		},
+		"DMZ2IP" : {
+			"Description" : "Fixed private IP for the NetScaler ENI located in the DMZ in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.2.10"
+		},
+		"NSGWAZ1VIP" : {
+			"Description" : "Fixed private IP for the NetScaler Gateway VIP ENI located in the DMZ in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.1.11"
+		},
+		"NSGWAZ2VIP" : {
+			"Description" : "Fixed private IP for the NetScaler Gateway VIP ENI located in the DMZ in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.2.11"
+		},
+		"Infra1MIP" : {
+			"Description" : "Fixed private IP (MIP)for the NetScaler ENI located in the Infrastructure subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.3.10"
+		},
+		"Infra1CBIP" : {
+			"Description" : "Fixed private IP for the CloudBridge VPX located in the Infrastructure subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.3.11"
+		},
+		"Infra2MIP" : {
+			"Description" : "Fixed private IP (MIP) for the ENI located in the Infrastructure subnet in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.4.10"
+		},
+		"Infra2CBIP" : {
+			"Description" : "Fixed private IP for the CloudBridge VPX located in the Infrastructure subnet in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.4.11"
+		},
+		"NS1AZ1NSIP" : {
+			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the primary NetScaler located in the NetScaler subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.9.10"
+		},
+		"NS2AZ1NSIP" : {
+			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the secondary NetScaler located in the NetScaler subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.9.11"
+		},
+		"NS1AZ2NSIP" : {
+			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the primary NetScaler located in the NetScaler subnet in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.10.10"
+		},
+		"NS2AZ2NSIP" : {
+			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the secondary NetScaler located in the NetScaler subnet in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.10.11"
+		},
+		"AllOpenSecurityGroup" : {
+			"Description" : "ID of the All Open Security Group",
+			"Type" : "String"
+		},
+		"PrivateSecurityGroup" : {
+			"Description" : "ID of the Private Security Group",
+			"Type" : "String"
+		},
+		"NSSecurityGroup" : {
+			"Description" : "ID of the NetScaler Security Group",
+			"Type" : "String"
+		},
+		"DMZSecurityGroup" : {
+			"Description" : "ID of the DMZ Security Group",
+			"Type" : "String"
+		},
+		"DMZ1Subnet" : {
+			"Description" : "ID of the DMZ Subnet located in AZ1",
+			"Type" : "String"
+		},
+		"DMZ2Subnet" : {
+			"Description" : "ID of the DMZ Subnet located in AZ1",
+			"Type" : "String"
+		},
+		"Infra1Subnet" : {
+			"Description" : "ID of the Infrastructure Subnet located in AZ1",
+			"Type" : "String"
+		},
+		"Infra2Subnet" : {
+			"Description" : "ID of the Infrastructure Subnet located in AZ2",
+			"Type" : "String"
+		},
+        "NSHA"						: {
+            "Description" : "Single NetScaler per AZ or NetScaler HA Pair per AZ. Options include either \"Single\" or \"HA Pair\"",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "Single",
+                "HA Pair"
+            ],
+            "Default"       : "Single"
+        },
+        "NSCB"						: {
+            "Description" : "Enable CloudBridge VPX per AZ to accelerate traffic traversing the Cloud Connector. Options include either \"Enable\" or \"Disable\"",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "Enable",
+                "Disable"
+            ],
+            "Default"       : "Enable"
+        },
+		"NS1Subnet" : {
+			"Description" : "ID of the NetScaler Subnet located in AZ1",
+			"Type" : "String"
+		},
+		"NS2Subnet" : {
+			"Description" : "ID of the NetScaler Subnet located in AZ2",
+			"Type" : "String"
+		}
+	},
+	"Mappings" : {
+		"AWSInstanceType2Arch" : {
+			"m3.large"		: { "Arch" : "64" },
+			"m3.xlarge"		: { "Arch" : "64" },
+			"m3.2xlarge"	: { "Arch" : "64" },
+			"c3.xlarge"		: { "Arch" : "64" }
+		},
+		"AWSRegionArchCBAMI" : {
+			"us-east-1"      : {"64" : "ami-28a9cb40"},
+			"us-west-2"      : {"64" : "ami-c57626f5"},
+			"us-west-1"      : {"64" : "ami-81534ec4"},
+			"eu-west-1"      : {"64" : "ami-843b82f3"},
+			"ap-southeast-1" : {"64" : "ami-cde6c99f"},
+			"ap-southeast-2" : {"64" : "ami-11244f2b"},
+			"ap-northeast-1" : {"64" : "ami-36969837"},
+			"sa-east-1"      : {"64" : "ami-95dd6e88"}
+		},
+		"AWSRegionArchNSAMI" : {
+			"us-east-1"      : {"64" : "ami-b60f60de"},
+			"us-west-2"      : {"64" : "ami-ed396add"},
+			"us-west-1"      : {"64" : "ami-79dac73c"},
+			"eu-west-1"      : {"64" : "ami-2e03bb59"},
+			"ap-southeast-1" : {"64" : "ami-1b95ba49"},
+			"ap-southeast-2" : {"64" : "ami-374b200d"},
+			"ap-northeast-1" : {"64" : "ami-9c3e369d"},
+			"sa-east-1"      : {"64" : "ami-3d8a3920"}
+		}
+	},
+	"Conditions" : {
+		"CreateCBResources"		: {"Fn::Equals" : [{"Ref" : "NSCB"}, "Enable"]},
+		"CreateNSHAResources"	: {"Fn::Equals" : [{"Ref" : "NSHA"}, "HA Pair"]}
+	},
+
+	"Resources" : {
+		"IAMUser" : {
+			"Type" : "AWS::IAM::User",
+			"Properties" : {
+				"Path": "/",
+				"Policies": [{
+					"PolicyName": "root",
+					"PolicyDocument": { "Statement":[{
+						"Effect": "Allow",
+						"Action": "CloudFormation:DescribeStackResource",
+						"Resource": "*"
+					}]}
+				}]
+			}
+		},
+		"IAMUserAccessKey" : {
+			"Type" : "AWS::IAM::AccessKey",
+			"Properties" : {
+				"UserName" : {"Ref": "IAMUser"}
+			}
+		},
+		"AZ1NS1ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Properties": {
+				"Description": "ENI connected to primary Netscaler in subnet in AZ1",
+				"SubnetId": {
+					"Ref": "NS1Subnet"
+				},
+				"GroupSet": [
+					{
+						"Ref": "NSSecurityGroup"
+					}
+				],
+				"PrivateIpAddress": {
+					"Ref": "NS1AZ1NSIP"
+				}
+			}
+		},
+		"AZ1NS2ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+				"Description": "ENI connected to secondary Netscaler in subnet in AZ1",
+				"SubnetId": {
+					"Ref": "NS1Subnet"
+				},
+				"GroupSet": [
+					{
+						"Ref": "NSSecurityGroup"
+					}
+				],
+				"PrivateIpAddress": {
+					"Ref": "NS2AZ1NSIP"
+				}
+			}
+		},
+		"AZ2NS1ENI": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "Description": "ENI connected to primary Netscaler in subnet in AZ2",
+        "SubnetId": {
+          "Ref": "NS2Subnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "NSSecurityGroup"
+          }
+        ],
+        "PrivateIpAddress": {
+          "Ref": "NS1AZ2NSIP"
+        }
+      }
+    },
+		"AZ2NS2ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+				"Description": "ENI connected to secondary Netscaler in subnet in AZ2",
+				"SubnetId": {
+					"Ref": "NS2Subnet"
+				},
+				"GroupSet": [
+					{
+						"Ref": "NSSecurityGroup"
+					}
+				],
+				"PrivateIpAddress": {
+					"Ref": "NS2AZ2NSIP"
+				}
+			}
+		},
+		"Infra1ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Properties": {
+				"Description": "ENI connected to Infrastructure subnet in AZ1",
+				"SubnetId": {
+					"Ref": "Infra1Subnet"
+				},
+				"GroupSet": [
+					{
+						"Ref": "PrivateSecurityGroup"
+					},
+					{
+						"Ref": "AllOpenSecurityGroup"
+					}
+				],
+				"PrivateIpAddress": {
+					"Ref": "Infra1MIP"
+				},
+				"SourceDestCheck" : "false"
+			}
+		},
+		"Infra2ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Properties": {
+				"Description": "ENI connected to Infrastructure subnet in AZ2",
+				"SubnetId": {
+					"Ref": "Infra2Subnet"
+				},
+				"GroupSet": [
+					{
+						"Ref": "PrivateSecurityGroup"
+					},
+					{
+						"Ref": "AllOpenSecurityGroup"
+					}
+				],
+				"PrivateIpAddress": {
+					"Ref": "Infra2MIP"
+				},
+				"SourceDestCheck" : "false"
+			}
+		},
+		"DMZ1ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Properties": {
+				"Description": "ENI connected to DMZ subnet in AZ1",
+				"SubnetId": { "Ref": "DMZ1Subnet" },
+				"GroupSet": [
+					{
+						"Ref": "DMZSecurityGroup"
+					}
+				],
+				"PrivateIpAddresses"  : [
+					{
+						"Primary" : "true",
+							"PrivateIpAddress" : { "Ref" : "DMZ1IP" }
+					},
+                    {
+						"Primary" : "false",
+							"PrivateIpAddress" : { "Ref" : "NSGWAZ1VIP" }
+					}
+				],
+				"SourceDestCheck" : "false"
+			}
+		},
+		"DMZ2ENI": {
+			"Type": "AWS::EC2::NetworkInterface",
+			"Properties": {
+				"Description": "ENI connected to DMZ subnet in AZ2",
+				"SubnetId": { "Ref": "DMZ2Subnet" },
+				"GroupSet": [
+					{
+						"Ref": "DMZSecurityGroup"
+					}
+				],
+				"PrivateIpAddresses"  : [
+					{
+						"Primary" : "true",
+                        "PrivateIpAddress" : { "Ref" : "DMZ2IP" }
+					},
+                    {
+						"Primary" : "false",
+						"PrivateIpAddress" : { "Ref" : "NSGWAZ2VIP" }
+					}
+				],
+				"SourceDestCheck" : "false"
+			}
+		},
+		"NS1AZ1VPXInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+ 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchNSAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "NSVPXInstanceType" }, "Arch" ] } ] },
+				"InstanceType": {
+					"Ref": "NSVPXInstanceType"
+				},
+				"NetworkInterfaces": [
+					{
+						"NetworkInterfaceId": { "Ref": "AZ1NS1ENI" },
+						"DeviceIndex": "0"
+					},
+					{
+						"NetworkInterfaceId": { "Ref": "DMZ1ENI" },
+						"DeviceIndex": "1"
+					},
+					{
+						"NetworkInterfaceId": { "Ref": "Infra1ENI" },
+						"DeviceIndex": "2"
+					}
+				],
+				"UserData": {
+					"Fn::Base64": {
+					"Fn::Join": [
+						"",
+						[
+							"ACCESS_KEY=",
+							"\"",
+							{
+								"Ref": "IAMUserAccessKey"
+							},
+							"\"",
+							"\n",
+							"SECRET_KEY=",
+							"\"",
+							{
+								"Fn::GetAtt": [
+									"IAMUserAccessKey",
+									"SecretAccessKey"
+								]
+							},
+							"\""
+						]
+					]
+				}
+			},
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": { "Ref" : "NS1VPXNameAZ1" }
+					}
+				],
+				"KeyName": { "Ref": "KeyPairName" }
+			}
+		},
+		"NS2AZ1VPXInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+ 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchNSAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "NSVPXInstanceType" }, "Arch" ] } ] },
+				"InstanceType": {
+					"Ref": "NSVPXInstanceType"
+				},
+				"NetworkInterfaces": [
+					{
+						"NetworkInterfaceId": {
+						"Ref": "AZ1NS2ENI"
+						},
+						"DeviceIndex": "0"
+					}
+				],
+				"UserData": {
+					"Fn::Base64": {
+					"Fn::Join": [
+              "",
+              [
+                "ACCESS_KEY=",
+                "\"",
+                {
+                  "Ref": "IAMUserAccessKey"
+                },
+                "\"",
+                "\n",
+                "SECRET_KEY=",
+                "\"",
+                {
+                  "Fn::GetAtt": [
+				  "IAMUserAccessKey",
+				  "SecretAccessKey"
+				  ]
+                },
+                "\""
+              ]
+            ]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Ref" : "NS2VPXNameAZ1" }
+          }
+        ],
+        "KeyName": {
+          "Ref": "KeyPairName"
+        } 
+      }
+    },
+		"NS1AZ2VPXInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+ 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchNSAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "NSVPXInstanceType" }, "Arch" ] } ] },
+				"InstanceType": { "Ref": "NSVPXInstanceType" },
+				"NetworkInterfaces": [
+					{
+						"NetworkInterfaceId": { "Ref": "AZ2NS1ENI" },
+						"DeviceIndex": "0"
+					},
+					{
+						"NetworkInterfaceId": { "Ref": "DMZ2ENI" },
+						"DeviceIndex": "1"
+					},
+					{
+						"NetworkInterfaceId": { "Ref": "Infra2ENI" },
+						"DeviceIndex": "2"
+					}
+			],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "ACCESS_KEY=",
+                "\"",
+                {
+                  "Ref": "IAMUserAccessKey"
+                },
+                "\"",
+                "\n",
+                "SECRET_KEY=",
+                "\"",
+                {
+                  "Fn::GetAtt": [
+				  "IAMUserAccessKey",
+				  "SecretAccessKey"
+				  ]
+                },
+                "\""
+              ]
+            ]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Ref" : "NS1VPXNameAZ2" }
+          }
+        ],
+        "KeyName": {
+          "Ref": "KeyPairName"
+        } 
+      }
+    },
+		"NS2AZ2VPXInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+		 		"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchNSAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "NSVPXInstanceType" }, "Arch" ] } ] },
+				"InstanceType": {
+					"Ref": "NSVPXInstanceType"
+				},
+				"NetworkInterfaces": [
+					{
+						"NetworkInterfaceId": { "Ref": "AZ2NS2ENI" },
+						"DeviceIndex": "0"
+					}
+				],
+				"UserData": {
+					"Fn::Base64": {
+					"Fn::Join": [
+					"",
+					[
+					"ACCESS_KEY=",
+					"\"",
+					{
+					"Ref": "IAMUserAccessKey"
+					},
+					"\"",
+					"\n",
+					"SECRET_KEY=",
+					"\"",
+					{
+						"Fn::GetAtt": [
+						"IAMUserAccessKey",
+						"SecretAccessKey"
+						]
+					},
+					"\""
+					]
+					]
+					}
+				},
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": { "Ref" : "NS2VPXNameAZ2" }
+					}
+				],
+				"KeyName": {
+					"Ref": "KeyPairName"
+				} 
+			}
+		},
+		"NSAZ1CBInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Condition"	:	"CreateCBResources",
+			"Properties": {
+ 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchCBAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "CBVPXInstanceType" }, "Arch" ] } ] },
+				"InstanceType": {"Ref": "CBVPXInstanceType"},
+				"SubnetId" : { "Ref" : "Infra1Subnet" },
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Ref" : "CBVPXNameAZ1" }
+				} ],
+				"SecurityGroupIds" : [ {"Ref" : "AllOpenSecurityGroup"} ],
+				"PrivateIpAddress" : { "Ref" : "Infra1CBIP" }
+			}
+		},
+		"NSAZ2CBInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Condition"	:	"CreateCBResources",
+			"Properties": {
+ 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchCBAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "CBVPXInstanceType" }, "Arch" ] } ] },
+				"InstanceType": { "Ref": "CBVPXInstanceType" },
+				"SubnetId" : { "Ref" : "Infra2Subnet" },
+				"Tags": [ {
+					"Key": "Name",
+					"Value": { "Ref" : "CBVPXNameAZ2"}
+				} ],
+				"SecurityGroupIds" :  [ { "Ref": "AllOpenSecurityGroup"}],
+				"PrivateIpAddress" : { "Ref" : "Infra2CBIP" }
+			}
+		},
+		"AZ1NSEipSnip": {
+			"Type": "AWS::EC2::EIP",
+			"Properties": {
+				"Domain": "vpc"
+			}
+		},
+		"AZ2NSEipSnip": {
+			"Type": "AWS::EC2::EIP",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+				"Domain": "vpc"
+			}
+		},
+		"AZ1NSEipVip": {
+			"Type": "AWS::EC2::EIP",
+			"Properties": {
+				"Domain": "vpc"
+			}
+		},
+		"AZ2NSEipVip": {
+			"Type": "AWS::EC2::EIP",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+				"Domain": "vpc"
+			}
+		},
+		"AssociateAZ1NSEipSnip": {
+			"Type": "AWS::EC2::EIPAssociation",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"AZ1NSEipSnip",
+						"AllocationId"
+					]
+				},
+				"NetworkInterfaceId": {
+					"Ref": "DMZ1ENI"
+				},
+				"PrivateIpAddress" : { "Ref" : "DMZ1IP" }
+			}
+		},
+		"AssociateAZ2NSEipSnip": {
+			"Type": "AWS::EC2::EIPAssociation",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"AZ2NSEipSnip",
+						"AllocationId"
+					]
+				},
+				"NetworkInterfaceId": {
+					"Ref": "DMZ2ENI"
+				},
+				"PrivateIpAddress" : { "Ref" : "DMZ2IP" }
+			}
+		},
+		"AssociateAZ1NSEipVip": {
+			"Type": "AWS::EC2::EIPAssociation",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"AZ1NSEipVip",
+						"AllocationId"
+					]
+				},
+				"NetworkInterfaceId": {
+					"Ref": "DMZ1ENI"
+				},
+				"PrivateIpAddress" : { "Ref" : "NSGWAZ1VIP" }
+			}
+		},
+		"AssociateAZ2NS2EipVip": {
+			"Type": "AWS::EC2::EIPAssociation",
+			"Condition"	:	"CreateNSHAResources",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"AZ2NSEipVip",
+						"AllocationId"
+					]
+				},
+				"NetworkInterfaceId": {
+					"Ref": "DMZ2ENI"
+				},
+				"PrivateIpAddress" : { "Ref" : "NSGWAZ2VIP" }
+
+			}
+		}
+	},
+	"Outputs" : {
+		"EIPNSSnipAZ1" : {
+			"Value" : { "Ref" : "AZ1NSEipSnip" },
+			"Description" : "Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+    },
+		"EIPNSVipAZ1" : {
+			"Value" : { "Ref" : "AZ1NSEipVip" },
+			"Description" : "Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ2" : {
+			"Value" : { "Ref" : "AZ2NSEipSnip" },
+			"Description" : "Elastic IP address of the NetScaler VPX instance in AZ2 associated with SNIP for CloudConnector"
+    },
+		"EIPNSVipAZ2" : {
+			"Value" : { "Ref" : "AZ2NSEipVip" },
+			"Description" : "Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    }
+	}
+}

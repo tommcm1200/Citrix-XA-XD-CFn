@@ -1,0 +1,1130 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "**Version 1.08, 3-3-2016** This Master template deploys a High Available, Dual Zone, Single Regions XenDesktop infrastructure. This template also deploys the require AD architecture outlined in \"Implementing Active Directory Domain Services in the AWS Cloud\" **WARNING** This template creates Amazon EC2 Windows instance and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Parameters"               : {
+        "KeyPairName" : {
+            "Description" : "Public/private key pairs allow you to securely connect to your instance after it launches",
+            "Type"        : "String"
+        },
+        "WSFCNode1InstanceType" : {
+            "Description" : "Amazon EC2 instance type for the 1st WSFC Node",
+            "Type"        : "String",
+            "Default"     : "r3.large",
+            "AllowedValues" : [
+                "c3.large",
+				"c3.xlarge",
+				"c3.2xlarge",
+				"r3.large",
+				"r3.xlarge",
+				"r3.2xlarge",
+                "r3.4xlarge"
+            ],
+            "ConstraintDescription" : "Only EBS Optimized instance types r3.xlarge, r3.2xlarge, r3.4xlarge allowed"
+        },
+        "WSFCNode2InstanceType" : {
+            "Description" : "Amazon EC2 instance type for the 1st WSFC Node",
+            "Type"        : "String",
+            "Default"     : "r3.large",
+            "AllowedValues" : [
+				"c3.large",
+				"c3.xlarge",
+				"c3.2xlarge",
+				"r3.large",
+				"r3.xlarge",
+				"r3.2xlarge",
+                "r3.4xlarge"
+            ],
+            "ConstraintDescription" : "Only EBS Optimized instance types r3.xlarge, r3.2xlarge, r3.4xlarge allowed"
+        },
+		"NSInstanceType": {
+            "Description": "TypeofEC2instancetouse",
+            "Type": "String",
+			"Default"	: "m4.large",
+			"AllowedValues" : [ "m4.large","m4.xlarge","m4.2xlarge","m4.4xlarge","m4.10xlarge","m3.large", "m3.xlarge", "m3.2xlarge" ]
+        },
+		"CBVPXInstanceType" : {
+			"Description" : "Amazon EC2 instance type for the CloudBridge VPX Instances",
+			"Type" : "String",
+			"Default" : "m3.large",
+			"AllowedValues" : [ "m3.large", "m3.xlarge", "m3.2xlarge", "c3.xlarge"]
+		},
+		"DomainDNSName":{
+         "Description":"Fully qualified domain name (FQDN) to be used for the DHCP scop e.g. xencloud.net",
+         "Type":"String",
+         "Default":"xencloud.net",
+         "MinLength":"3",
+         "MaxLength":"25",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"DomainNetBIOSName"   : {
+            "Description" : "NetBIOS name for the domain (XENCLOUD)",
+            "Type"        : "String",
+            "Default"     : "XENCLOUD"
+        },
+        "WSFCNode1NetBIOSName"  : {
+            "Description" : "NetBIOS name of the 1st WSFC Node (up to 15 characters)",
+            "Type"        : "String",
+            "Default"     : "WSFCNode1",
+            "MinLength"   : "1",
+            "MaxLength"   : "15",
+            "AllowedPattern" : "[a-zA-Z0-9]+"
+        },
+        "WSFCNode2NetBIOSName"  : {
+            "Description" : "NetBIOS name of the 2nd WSFC Node (up to 15 characters)",
+            "Type"        : "String",
+            "Default"     : "WSFCNode2",
+            "MinLength"   : "1",
+            "MaxLength"   : "15",
+            "AllowedPattern" : "[a-zA-Z0-9]+"
+        },
+		"RestoreModePassword" : {
+			"Description" : "Password for a separate Administrator account when the domain controller is in Restore Mode. Must be at least 8 characters containing letters, numbers and symbols",
+			"Type" : "String",
+			"MinLength" : "8",
+			"MaxLength" : "32",
+			"AllowedPattern" : "(?=^.{6,255}$)((?=.*\\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*",
+			"NoEcho" : "True"
+		},
+        "DomainAdminUser"      : {
+            "Description" : "User name for the account that will be added as Domain Administrator. This is separate from the default \"Administrator\" account",
+            "Type"        : "String",
+            "Default"     : "XenAdmin",
+            "MinLength"   : "5",
+            "MaxLength"   : "25",
+            "AllowedPattern" : "[a-zA-Z0-9]*"
+        },
+        "DomainAdminPassword"  : {
+            "Description" : "Password for the domain admin user. Must be at least 8 characters containing letters, numbers and symbols",
+            "Type"        : "String",
+            "MinLength"   : "8",
+            "MaxLength"   : "32",
+            "AllowedPattern" : "(?=^.{6,255}$)((?=.*\\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*",
+            "NoEcho"         : "True"
+        },
+        "SQLServiceAccount"     : {
+            "Description" : "User name for the SQL Server Service Account. This Account is a Domain User.",
+            "Type"        : "String",
+            "Default"     : "sqlsa",
+            "MinLength"   : "5",
+            "MaxLength"   : "25",
+            "AllowedPattern" : "[a-zA-Z0-9]*"
+        },
+        "SQLServiceAccountPassword" : {
+            "Description" : "Password for the SQL Service account. Must be at least 8 characters containing letters, numbers and symbols",
+            "Type"        : "String",
+            "MinLength"   : "8",
+            "MaxLength"   : "32",
+            "AllowedPattern" : "(?=^.{6,255}$)((?=.*\\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*",
+            "NoEcho"         : "true"
+        },
+        "UserCount"           : {
+            "Description" : "Total number of test user accounts to create in Active Directory",
+            "Type"        : "Number",
+            "Default"     : "25"
+        },
+		"DMZ1CIDR":{
+         "Description":"CIDR Block for the Public DMZ Subnet 1 located in AZ1",
+         "Type":"String",
+         "Default":"10.16.1.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"DMZ2CIDR":{
+         "Description":"CIDR Block for the Public DMZ Subnet 2 located in AZ2",
+         "Type":"String",
+         "Default":"10.16.2.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"NS1CIDR":{
+         "Description":"CIDR Block for the Public NetScaler Subnet 1 located in AZ1",
+         "Type":"String",
+         "Default":"10.16.9.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"NS2CIDR":{
+         "Description":"CIDR Block for the Public NetScaler Subnet 2 located in AZ2",
+         "Type":"String",
+         "Default":"10.16.10.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"Web1CIDR":{
+         "Description":"CIDR Block for Web/StoreFront Subnet 1 located in AZ1",
+         "Type":"String",
+         "Default":"10.16.7.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"Web2CIDR":{
+         "Description":"CIDR Block for Web/Storefront Subnet 1 located in AZ2",
+         "Type":"String",
+         "Default":"10.16.8.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"Infra1CIDR":{
+         "Description":"CIDR Block for Infrastructure Subnet 1 located in AZ1",
+         "Type":"String",
+         "Default":"10.16.3.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"Infra2CIDR":{
+         "Description":"CIDR Block for Infrastructure Subnet 2 located in AZ2",
+         "Type":"String",
+         "Default":"10.16.4.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"Worker1CIDR":{
+         "Description":"CIDR Block for Desktop Workers Subnet 1 located in AZ1",
+         "Type":"String",
+         "Default":"10.16.5.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"Worker2CIDR":{
+         "Description":"CIDR Block for Desktop Workers Subnet 2 located in AZ2",
+         "Type":"String",
+         "Default":"10.16.6.0/24",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"VPCCIDR":{
+         "Description":"CIDR Block for the VPC",
+         "Type":"String",
+         "Default":"10.16.0.0/16",
+         "AllowedPattern":"[a-zA-Z0-9]+\\..+"
+      },
+		"VPCName":{
+			"Default":"XenApp - XenDesktop 7.x VPC",
+			"Description":"The name of the Virtual Private Cloud",
+			"Type":"String"
+		},
+		"AZ1":{
+         "Description":"Name of Availabilty Zone that will contain public & private subnets - Select a valid Zone for your region",
+         "Type":"String",
+         "Default":"us-east-1b",
+         "AllowedValues":[
+            "eu-central-1a",
+			"eu-central-1b",
+			"eu-west-1a",
+            "eu-west-1b",
+            "eu-west-1c",
+            "us-east-1b",
+            "us-east-1c",
+            "us-east-1d",
+            "us-east-1e",
+            "us-west-1a",
+            "us-west-1c",
+            "ap-southeast-1a",
+            "ap-southeast-1b",
+            "ap-southeast-2a",
+            "ap-southeast-2b",
+            "ap-southeast-2c",
+            "ap-northeast-1a",
+            "ap-northeast-1b",
+            "ap-northeast-1c",
+            "ap-northeast-2a",
+            "ap-northeast-2c",
+            "us-west-2a",
+            "us-west-2b",
+            "us-west-2c",
+            "sa-east-1a",
+            "sa-east-1b",
+			"sa-east-1c"
+         ],
+         "ConstraintDescription":"Must be a valid EC2 Availabilty zone for region being deployed to."
+      },
+		"AZ2":{
+         "Description":"Name of Availabilty Zone that will contain public & private subnets - Select a valid Zone for your region",
+         "Type":"String",
+         "Default":"us-east-1c",
+         "AllowedValues":[
+            "eu-central-1a",
+			"eu-central-1b",
+			"eu-west-1a",
+            "eu-west-1b",
+            "eu-west-1c",
+            "us-east-1b",
+            "us-east-1c",
+            "us-east-1d",
+            "us-east-1e",
+            "us-west-1a",
+            "us-west-1c",
+            "ap-southeast-1a",
+            "ap-southeast-1b",
+            "ap-southeast-2a",
+            "ap-southeast-2b",
+            "ap-southeast-2c",
+            "ap-northeast-1a",
+            "ap-northeast-1b",
+            "ap-northeast-1c",
+            "ap-northeast-2a",
+            "ap-northeast-2c",
+            "us-west-2a",
+            "us-west-2b",
+            "us-west-2c",
+            "sa-east-1a",
+            "sa-east-1b",
+			"sa-east-1c"
+         ],
+         "ConstraintDescription":"Must be a valid EC2 Availabilty zone for region being deployed to. Only supports eu-west-1 ,us-east-1 & us-west-1 etc <- You can customize if you define a constraint"
+      },
+		"AD1PrivateIp":{
+         "Description":"Fixed private IP for the first Active Directory server located in AZ1",
+         "Type":"String",
+         "Default":"10.16.3.5"
+      },
+		"AD2PrivateIp":{
+         "Description":"Fixed private IP for the second Active Directory serverr located in AZ2",
+         "Type":"String",
+         "Default":"10.16.4.5"
+      },
+        "WSFCNode1PrivateIp"        : {
+            "Description" : "Fixed private IP for the 1st WSFC Node located in AZ1",
+            "Type"        : "String",
+            "Default"     : "10.16.3.100"
+        },
+        "WSFCNode1PrivateIp2"       : {
+            "Description" : "Secondary private IP for WSFC cluster on 1st WSFC Node",
+            "Type"        : "String",
+            "Default"     : "10.16.3.101"
+        },
+        "WSFCNode1PrivateIp3"       : {
+            "Description" : "Third private IP for Availability Group Listner on 1st WSFC Node",
+            "Type"        : "String",
+            "Default"     : "10.16.3.102"
+        },
+        "WSFCNode2PrivateIp"        : {
+            "Description" : "Primary private IP for the 2nd WSFC Node located in AZ2",
+            "Type"        : "String",
+            "Default"     : "10.16.4.100"
+        },
+        "WSFCNode2PrivateIp2"       : {
+            "Description" : "Secondary private IP for WSFC cluster on 2nd WSFC Node",
+            "Type"        : "String",
+            "Default"     : "10.16.4.101"
+        },
+        "WSFCNode2PrivateIp3"       : {
+            "Description" : "Third private IP for Availability Group Listner on 2nd WSFC Node",
+            "Type"        : "String",
+            "Default"     : "10.16.4.102"
+        },
+ 		"NS1AZ1NSIP"				: {
+			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the primary NetScaler located in the NetScaler subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.9.10"
+		},
+		"NS2AZ1NSIP"				: {
+			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the secondary NetScaler located in the NetScaler subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.9.11"
+		},
+		"NS1AZ2NSIP"				: {
+			"Description" : "Fixed private IP for the ENI of the primary NetScaler located in the NetScaler subnet in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.10.10"
+		},
+		"NS2AZ2NSIP"				: {
+			"Description" : "Fixed private IP for the ENI of the secondary NetScaler located in the NetScaler subnet in AZ2",
+			"Type" : "String",
+			"Default" : "10.16.10.11"
+		},
+        "NSMIPAZ1"					: {
+            "Description" : "Fixed private MIP or SNIP for the NetScaler NIC connected to the Private Subnet, should be within the CIDR of the private subnet",
+            "Type"        : "String",
+            "Default"     : "10.16.3.10"
+        },
+        "NSMIPAZ2"					: {
+            "Description" : "Fixed private MIP or SNIP for the NetScaler NIC connected to the Private Subnet, should be within the CIDR of the private subnet",
+            "Type"        : "String",
+            "Default"     : "10.16.4.10"
+        },
+        "NSVIPAZ1"					: {
+            "Description" : "Fixed VIP for the NetScaler NIC connected to the Public Subnet, should be within the CIDR of the public subnet",
+            "Type"        : "String",
+            "Default"     : "10.16.1.11"
+        },
+        "NSSNIPAZ1"					: {
+            "Description" : "Subnet IP for the NetScaler NIC connected to the Public Subnet in AZ1, should be within the CIDR of the public subnet",
+            "Type"        : "String",
+            "Default"     : "10.16.1.10"
+        },
+        "NSSNIPAZ2"					: {
+            "Description" : "Subnet IP for the NetScaler NIC connected to the Public Subnet in AZ2, should be within the CIDR of the public subnet",
+            "Type"        : "String",
+            "Default"     : "10.16.2.10"
+        },
+        "NSVIPAZ2"					: {
+            "Description" : "Fixed VIP for the NetScaler NIC connected to the Public Subnet, should be within the CIDR of the public subnet",
+            "Type"        : "String",
+            "Default"     : "10.16.2.11"
+        },
+        "NSHA"						: {
+            "Description" : "Single NetScaler per AZ or NetScaler HA Pair per AZ. Options include either \"Single\" or \"HA Pair\"",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "Single",
+                "HA Pair"
+            ],
+            "Default"       : "Single"
+        },
+        "NSCB"						: {
+            "Description" : "Enable CloudBridge VPX per AZ to accelerate traffic traversing the Cloud Connector. Options include either \"Enable\" or \"Disable\"",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "Enable",
+                "Disable"
+            ],
+            "Default"       : "Enable"
+        },
+		"Infra1CBIP"				: {
+			"Description" : "Fixed private IP for the CloudBridge VPX located in the Infrastructure subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.3.11"
+		},
+		"Infra2CBIP"				: {
+			"Description" : "Fixed private IP for the CloudBridge VPX located in the Infrastructure subnet in AZ1",
+			"Type" : "String",
+			"Default" : "10.16.4.11"
+		},
+		"DiskStripeVolumeSize"		: {
+			"Description"	: "Size in GB of the 8 individual stripes for the SQL Server Striped Volumes",
+			"Type"	:	"String",
+			"Default"	:	"20"
+			},
+        "XDVersion"					: {
+            "Description" : "Version of XenDesktop 7 to install. Options include either \"XD75\" \"XD76\" \"XD77\" or \"XD78\"",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "XD75",
+                "XD76",
+				"XD77",
+				"XD78"
+            ],
+            "Default"       : "XD76"
+        },
+        "SQLServerVersion"			: {
+            "Description" : "Version of SQL Server to install on WSFC Nodes. Options include either \"2014\" or \"2012\"",
+            "Type"        : "String",
+			"AllowedValues" : ["2014", "2012"],
+            "Default"     : "2014"
+        },
+		"NetScalerVersion"			: {
+            "Description" : "Version of NetScaler to use. Options include either \"11.0-64.34\",\"11.0-63.18\",\"11.0-62.12\",\"10.5-57.7\",\"10.5-55.8\",\"10.5-54.9\",\"10.5-53.9\",\"10.1-126.1221.e\"  or \"10.1.e-126.1220.e\"",
+            "Type"        : "String",
+			"AllowedValues" : ["11.0-64.34","11.0-63.18","11.0-62.12","10.5-57.7","10.5-55.8","10.5-54.9", "10.5-53.9","10.1-126.1221.e","10.1.e-126.1220.e"],
+            "Default"     : "11.0-63.18"
+        }
+
+	},
+	"Conditions" : {
+		"CreateCBResources"		: {"Fn::Equals" : [{"Ref" : "NSCB"}, "Enable"]},
+		"CreateNSHAResources"	: {"Fn::Equals" : [{"Ref" : "NSHA"}, "HA Pair"]},
+		"CreateNS55Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "11.0-64.34"]},
+		"CreateNS54Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "11.0-63.18"]},
+		"CreateNS53Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "11.0-62.12"]},
+		"CreateNS52Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "10.5-57.7"]},
+		"CreateNS51Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "10.5-55.8"]},
+		"CreateNS50Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "10.5-54.9"]},
+		"CreateNS49Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "10.5-53.9"]},
+		"CreateNS47Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "10.1-126.1221.e"]},
+		"CreateNS46Resources"	: {"Fn::Equals" : [{"Ref" : "NetScalerVersion"}, "10.1.e-126.1220.e"]}
+  },
+	"Resources" : {
+    	"ADStack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_AD_2012.json",
+           	 	"Parameters" : {
+					"AD1PrivateIp" : {"Ref" : "AD1PrivateIp"},
+					"AD1InstanceType" : "t2.medium",
+					"AD2PrivateIp" : {"Ref" : "AD2PrivateIp"},
+					"AD2InstanceType" : "t2.medium",
+					"ADServerNetBIOSName1" : "DC1",
+					"ADServerNetBIOSName2" : "DC2",
+					"DMZ1CIDR" : {"Ref" : "DMZ1CIDR"},
+					"DMZ2CIDR" : {"Ref" : "DMZ2CIDR"},
+					"DomainAdminPassword" : {"Ref" : "DomainAdminPassword"},
+					"DomainAdminUser" : {"Ref" : "DomainAdminUser"},
+					"DomainDNSName" : {"Ref" : "DomainDNSName"},
+					"DomainNetBIOSName" : {"Ref" : "DomainNetBIOSName"},
+					"KeyPairName" : {"Ref" : "KeyPairName"},
+					"NATInstanceType" : "t2.micro",
+					"Infra1CIDR" : {"Ref" : "Infra1CIDR"},
+					"Infra2CIDR" : {"Ref" : "Infra2CIDR"},
+					"Web1CIDR" : { "Ref" : "Web1CIDR" },
+					"Web2CIDR" : { "Ref" : "Web2CIDR" },
+					"Worker1CIDR" : { "Ref" : "Worker1CIDR" },
+					"Worker2CIDR" : { "Ref" : "Worker2CIDR" },
+					"BastionInstanceType" : "t2.small",
+					"RestoreModePassword" : {"Ref" : "RestoreModePassword"},
+					"UserCount" : {"Ref" : "UserCount"},
+					"VPCCIDR" : {"Ref" : "VPCCIDR"},
+					"VPCName" : {"Ref" : "VPCName"},
+					"AZ1" : {"Ref" : "AZ1"},
+					"AZ2" : {"Ref" : "AZ2"}
+           		}
+			}
+      	},	
+    	"SQLStack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_SQL_AlwaysOn.json",
+           	 	"Parameters" : {
+					"ADServer1PrivateIp" : {"Ref" : "AD1PrivateIp"},
+					"ADServer2PrivateIp" : {"Ref" : "AD2PrivateIp"},
+					"ADServerNetBIOSName1" : "DC1",
+					"ADServerNetBIOSName2" : "DC2",
+					"DiskStripeVolumeSize" : {"Ref" : "DiskStripeVolumeSize"},
+					"SQLServerVersion" : {"Ref" : "SQLServerVersion"},
+					"DomainAdminPassword" : {"Ref" : "DomainAdminPassword"},
+					"DomainAdminUser" : {"Ref" : "DomainAdminUser"},
+					"DomainDNSName" : {"Ref" : "DomainDNSName"},
+					"DomainMemberSGID" : { "Fn::GetAtt" : [ "ADStack", "Outputs.DomainMemberSGID" ] },
+					"DomainNetBIOSName" : {"Ref" : "DomainNetBIOSName"},
+					"KeyPairName" : {"Ref" : "KeyPairName"},
+					"SQLServiceAccount" : {"Ref" : "SQLServiceAccount"},
+					"SQLServiceAccountPassword" : {"Ref" : "SQLServiceAccountPassword"},
+					"VPC" : { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"Infra1CIDR" : {"Ref" : "Infra1CIDR"},
+					"WSFCNode1InstanceType" : {"Ref" : "WSFCNode1InstanceType"},
+					"WSFCNode1NetBIOSName" : {"Ref" : "WSFCNode1NetBIOSName"},
+					"WSFCNode1PrivateIp" : {"Ref" : "WSFCNode1PrivateIp"},
+					"WSFCNode1PrivateIp2" : {"Ref" : "WSFCNode1PrivateIp2"},
+					"WSFCNode1PrivateIp3" : {"Ref" : "WSFCNode1PrivateIp3"},
+					"InfraSubnet1Id" : { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2CIDR" : {"Ref" : "Infra2CIDR"},
+					"WSFCNode2InstanceType" : {"Ref" : "WSFCNode2InstanceType"},
+					"WSFCNode2NetBIOSName" : {"Ref" : "WSFCNode2NetBIOSName"},
+					"WSFCNode2PrivateIp" : {"Ref" : "WSFCNode2PrivateIp"},
+					"WSFCNode2PrivateIp2" : {"Ref" : "WSFCNode2PrivateIp2"},
+					"WSFCNode2PrivateIp3" : {"Ref" : "WSFCNode2PrivateIp3"},
+					"InfraSubnet2Id" : { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"AZ1" : {"Ref" : "AZ1"},
+					"AZ2" : {"Ref" : "AZ2"}
+           		}
+			}
+      	},
+    	"XDStack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "SQLStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_DDC.json",
+           	 	"Parameters" : {
+					"KeyPairName" : {"Ref" : "KeyPairName"},
+					"DDCInstanceType" : "m4.large",
+					"DomainDNSName" : {"Ref" : "DomainDNSName"},
+					"DomainNetBIOSName" : {"Ref" : "DomainNetBIOSName"},
+					"DDCServerNetBIOSName1" : "XD7DDC1",
+					"DDCServerNetBIOSName2" : "XD7DDC2",
+					"ADServerNetBIOSName1" : "DC1",
+					"ADServerNetBIOSName2" : "DC2",
+					"DomainAdminUser" : {"Ref" : "DomainAdminUser"},
+					"DomainAdminPassword" : {"Ref" : "DomainAdminPassword"},
+					"ADServer1PrivateIp" : {"Ref" : "AD1PrivateIp"},
+					"ADServer2PrivateIp" : {"Ref" : "AD2PrivateIp"},
+					"DomainMemberSGID" : { "Fn::GetAtt" : [ "ADStack", "Outputs.DomainMemberSGID" ] },
+					"DDCSGID"				:	{ "Fn::GetAtt" : [ "ADStack", "Outputs.DDCSGID" ] },
+					"VPC" : { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"InfraSubnet1Id" : { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"InfraSubnet2Id" : { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"XDVersion" : {"Ref" : "XDVersion"}
+           		}
+			}
+      	},
+    	"SFStack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_SF.json",
+           	 	"Parameters" : {
+					"KeyPairName" : {"Ref" : "KeyPairName"},
+					"SFInstanceType" : "m3.large",
+					"DomainDNSName" : {"Ref" : "DomainDNSName"},
+					"DomainNetBIOSName" : {"Ref" : "DomainNetBIOSName"},
+					"SF1ServerNetBIOSName" : "SF1",
+					"SF2ServerNetBIOSName" : "SF2",
+					"ADServerNetBIOSName1" : "DC1",
+					"ADServerNetBIOSName2" : "DC2",
+					"DomainAdminUser" : {"Ref" : "DomainAdminUser"},
+					"DomainAdminPassword" : {"Ref" : "DomainAdminPassword"},
+					"ADServer1PrivateIp" : {"Ref" : "AD1PrivateIp"},
+					"ADServer2PrivateIp" : {"Ref" : "AD2PrivateIp"},
+					"DomainMemberSGID" : { "Fn::GetAtt" : [ "ADStack", "Outputs.DomainMemberSGID" ] },
+					"SFSGID"				:	{ "Fn::GetAtt" : [ "ADStack", "Outputs.SFSGID" ] },
+					"WebSubnet1Id" : { "Fn::GetAtt" : [ "ADStack", "Outputs.WebSubnet1Id" ] },
+					"WebSubnet2Id" : { "Fn::GetAtt" : [ "ADStack", "Outputs.WebSubnet2Id" ] },
+					"Web1CIDR" : {"Ref" : "Web1CIDR"},
+					"Web2CIDR" : {"Ref" : "Web2CIDR"}
+           		}
+			}
+      	},
+		"NSVPX55Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS55Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v5.5.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX54Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS54Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v5.4.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX53Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS53Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v5.3.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX52Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS52Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v5.2.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX51Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS51Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v5.1.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX50Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS50Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v5.0.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX49Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS49Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v4.9.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX47Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS47Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v4.7.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+					"DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		},
+		"NSVPX46Stack" : {
+	    	"Type" : "AWS::CloudFormation::Stack",
+			"Condition"	:	"CreateNS46Resources",
+			"DependsOn" : "ADStack",
+       	 	"Properties" : {
+           		"TemplateURL" : "https://s3.amazonaws.com/cf-XenDesktop/RA/XD76_VPC_NS_HA_CB_PLT_1GB_v4.6.json",
+           	 	"Parameters" : {
+					"KeyPairName"			: { "Ref" : "KeyPairName" },
+					"VPC"					: { "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+					"NSHA"					: { "Ref" : "NSHA" },
+					"NSCB"					: { "Ref" : "NSCB" },
+					"NS1Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet1Id" ] },
+					"NS2Subnet"				: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSubnet2Id" ] },
+					"DMZ1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet1Id" ] },
+					"DMZ2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSubnet2Id" ] },
+					"Infra1Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+					"Infra2Subnet"			: { "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+					"DMZSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+					"NSSecurityGroup"		: { "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+					"AllOpenSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ] },
+					"PrivateSecurityGroup"	: { "Fn::GetAtt" : [ "ADStack", "Outputs.PrivateSGID" ] },
+					"NS1AZ1NSIP"			: {	"Ref" : "NS1AZ1NSIP" },
+					"NS2AZ1NSIP"			: {	"Ref" : "NS2AZ1NSIP" },
+					"NS1AZ2NSIP"			: {	"Ref" : "NS1AZ2NSIP" },
+					"NS2AZ2NSIP"			: {	"Ref" : "NS2AZ2NSIP" },
+                    "Infra1MIP"				: { "Ref" : "NSMIPAZ1" },
+                    "Infra2MIP"				: { "Ref" : "NSMIPAZ2" },
+                    "Infra1CBIP"			: { "Ref" : "Infra1CBIP" },
+                    "Infra2CBIP"			: { "Ref" : "Infra2CBIP" },
+                    "DMZ1IP"				: { "Ref" : "NSSNIPAZ1" },
+					"DMZ2IP"				: { "Ref" : "NSSNIPAZ2" },
+                    "NSGWAZ1VIP"			: { "Ref" : "NSVIPAZ1" },
+                    "NSGWAZ2VIP"			: { "Ref" : "NSVIPAZ2" },
+					"NSVPXInstanceType"		: { "Ref" : "NSInstanceType" }
+				}
+           	}
+		}
+      },
+	"Outputs":{
+		"VPCID"					:{
+         "Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.VPC" ] },
+         "Description":"Virtual Private Cloud ID"
+      },
+		"Infra1Subnet"			:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet1Id" ] },
+			"Description":"Infrastructure Subnet in AZ1"
+		},
+		"Infra2Subnet"			:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.InfraSubnet2Id" ] },
+			"Description":"Infrastructure Subnet in AZ2"
+		},
+		"DomainControllerSG"	:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.DomainMemberSGID" ] },
+			"Description":"Security group for Domain Controllers"
+		},
+		"DomainMemberSG"		:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.DomainMemberSGID" ] },
+			"Description":"Security group for Domain Member Servers"
+		},
+		"WorkerSG"				:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.WorkerSGID" ] },
+			"Description":"Security group for Worker Servers"
+		},
+		"SFSecurityGroup"		:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.SFSGID" ] },
+			"Description":"Security Group for StoreFront Servers"
+		},
+		"DMZSecurityGroup"		:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.PublicSGID" ] },
+			"Description":"Security Group for NetScalers ENIs connected to public subnets"
+		},
+		"NSSecurityGroup"		:{
+			"Value":{ "Fn::GetAtt" : [ "ADStack", "Outputs.NSSGID" ] },
+			"Description":"Security Group for NetScaler Management Network"
+		},
+		"AllOpenSecurityGroup"	:{
+			"Value"		:{"Fn::GetAtt" : [ "ADStack", "Outputs.AllOpenSGID" ]},
+			"Condition" : "CreateCBResources",
+			"Description":"Security Group used by CloudBridge and NetScaler ENIs connected to private subnets"
+      },
+		"Bastion1PublicIP"		:{
+			"Value"			:	{ "Fn::GetAtt" : [ "ADStack", "Outputs.Bastion1PublicIP" ] },
+			"Description"	:	"Elastic IP address of the Bastion Host (BASTION1) in AZ1"
+      },
+		"RootCert1"				: {
+            "Value"			:	{ "Fn::GetAtt" : [ "ADStack", "Outputs.RootCert1" ] },
+            "Description"	:	"Location of the root SSL certificate on the Bastion Host (Bastion1) in AZ1"
+        },
+		"RootCert2"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "ADStack", "Outputs.RootCert2" ] },
+            "Description"	:	"Location of the root SSL certificate on the first Bastion Host (Bastion1) in AZ1"
+        },
+		"Bastion2PublicIP"		:{
+			"Value"			:	{ "Fn::GetAtt" : [ "ADStack", "Outputs.Bastion2PublicIP" ] },
+			"Description"	:	"Elastic IP address of the second Bastion Gateway (BASTION2) in AZ2"
+      },
+		"EIPNSSnipAZ1NS55"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX55Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS55Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS55"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX55Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS55Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS55"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX55Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS55Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS55"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX55Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS55Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS54"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX54Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS54Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS54"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX54Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS54Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS54"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX54Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS54Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS54"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX54Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS54Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS53"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX53Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS53Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS53"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX53Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS53Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS53"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX53Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS53Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS53"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX53Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS53Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS52"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX52Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS52Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS52"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX52Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS52Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS52"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX52Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS52Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS52"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX52Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS52Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS51"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX51Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS51Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS51"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX51Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS51Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS51"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX51Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS51Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS51"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX51Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS51Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS50"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX50Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS50Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS50"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX50Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS50Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS50"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX50Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS50Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS50"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX50Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS50Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS49"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX49Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS49Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS49"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX49Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS49Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS49"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX49Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS49Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS49"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX49Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS49Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS47"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX47Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS47Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS47"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX47Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS47Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS47"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX47Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS47Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS47"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX47Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS47Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSSnipAZ1NS46"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX46Stack", "Outputs.EIPNSSnipAZ1" ] },
+			"Condition"		:	"CreateNS46Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSSnipAZ2NS46"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX46Stack", "Outputs.EIPNSSnipAZ2" ] },
+			"Condition"		:	"CreateNS46Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with SNIP for CloudConnector"
+		},
+		"EIPNSVipAZ1NS46"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX46Stack", "Outputs.EIPNSVipAZ1" ] },
+			"Condition"		:	"CreateNS46Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ1 associated with VIP for NetScaler Gateway"
+    },
+		"EIPNSVipAZ2NS46"				: {
+			"Value"			:	{ "Fn::GetAtt" : [ "NSVPX46Stack", "Outputs.EIPNSVipAZ2" ] },
+			"Condition"		:	"CreateNS46Resources",
+			"Description"	:	"Elastic IP address of the NetScaler VPX instance in AZ2 associated with VIP for NetScaler Gateway"
+    }
+	}
+}
