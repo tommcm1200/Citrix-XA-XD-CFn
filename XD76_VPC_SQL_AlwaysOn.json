@@ -362,7 +362,7 @@
                 "Handle" : {
                     "Ref" : "WSFCNode1WaitHandle"
                 },
-                "Timeout" : "12000"
+                "Timeout" : "6000"
             }
         },
         "WSFCNode1WaitHandle"    : {
