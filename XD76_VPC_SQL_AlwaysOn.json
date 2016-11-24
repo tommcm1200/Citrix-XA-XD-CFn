@@ -789,10 +789,10 @@
                                 }
                             },
                             "c:\\cfn\\scripts\\DownloadSQLEE2.ps1" : {
-                                "source" : "https://github.com/aws-quickstart/quickstart-microsoft-sql/blob/develop/scripts/DownloadSQLEE2.ps1"
+                                "source" : "https://s3.amazonaws.com/quickstart-reference/microsoft/sql/latest/scripts/DownloadSQLEE2.ps1"
                             },
                             "c:\\cfn\\scripts\\OpenWSFCPorts.bat"  : {
-                                "source" : "https://github.com/aws-quickstart/quickstart-microsoft-sql/blob/develop/scripts/OpenWSFCPorts.bat"
+                                "source" : "https://s3.amazonaws.com/quickstart-reference/microsoft/sql/latest/scripts/OpenWSFCPorts.bat"
                             },
                             "C:\\cfn\\scripts\\AddUserToGroup.ps1" : {
                                 "content" : {
@@ -894,7 +894,7 @@
                                 }
                             },
                             "c:\\cfn\\scripts\\MaxDOP.sql"    : {
-                                "source" : "https://github.com/aws-quickstart/quickstart-microsoft-sql/blob/develop/scripts/MaxDOP.sql"
+                                "source" : "https://s3.amazonaws.com/quickstart-reference/microsoft/sql/latest/scripts/MaxDOP.sql"
                             }
                         },
                         "commands" : {
@@ -1397,7 +1397,7 @@
                                 }
                             },
                             "c:\\cfn\\scripts\\MaxDOP.sql"    : {
-                                "source" : "https://github.com/aws-quickstart/quickstart-microsoft-sql/blob/develop/scripts/MaxDOP.sql"
+                                "source" : "https://s3.amazonaws.com/quickstart-reference/microsoft/sql/latest/scripts/MaxDOP.sql"
                             }
                         },
                         "services" : {
@@ -1692,7 +1692,7 @@
                                 }
                             },
                             "c:\\cfn\\scripts\\OpenWSFCPorts.bat" : {
-                                "source" : "https://github.com/aws-quickstart/quickstart-microsoft-sql/blob/develop/scripts/OpenWSFCPorts.bat"
+                                "source" : "https://s3.amazonaws.com/quickstart-reference/microsoft/sql/latest/scripts/OpenWSFCPorts.bat"
                             },
                             "C:\\cfn\\scripts\\AddUserToGroup.ps1" : {
                                 "content" : {
@@ -1921,7 +1921,7 @@
                                 }
                             },
                             "c:\\cfn\\scripts\\MaxDOP.sql"    : {
-                                "source" : "https://github.com/aws-quickstart/quickstart-microsoft-sql/blob/develop/scripts/MaxDOP.sql"
+                                "source" : "https://s3.amazonaws.com/quickstart-reference/microsoft/sql/latest/scripts/MaxDOP.sql"
                             }
                         },
                         "commands" : {
