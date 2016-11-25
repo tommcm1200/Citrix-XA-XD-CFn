@@ -123,15 +123,17 @@
             "Type"        : "String"
         },
         "XDVersion"					: {
-            "Description" : "Version of XenDesktop 7 to install. Options include either \"XD75\" \"XD76\" \"XD77\" or \"XD78\"",
+            "Description" : "Version of XenDesktop 7 to install. Options include either \"XD75\" \"XD76\" \"XD77\" or \"XD78\" or \"XD79\" or \"XD711\"",
             "Type"        : "String",
             "AllowedValues" : [
                 "XD75",
                 "XD76",
 				"XD77",
-				"XD78"
+				"XD78",
+                "XD79",
+                "XD711"
             ],
-            "Default"       : "XD76"
+            "Default"       : "XD711"
         }
 	},
  	"Mappings" : {
@@ -387,7 +389,7 @@
                     "installXD"       : {
                         "files" : {
                             "c:\\cfn\\scripts\\DownloadXDISO.ps1" : {
-                                "source" : "https://s3.amazonaws.com/cf-XenDesktop/RA/Scripts/DownloadXD.ps1"
+                                "source" : "https://s3-ap-southeast-2.amazonaws.com/tommcm-cf-xendesktop/RA/Scripts/DownloadXD.ps1"
                             },
                             "c:\\cfn\\scripts\\configureXD.ps1" : {
                                 "source" : "https://s3.amazonaws.com/cf-XenDesktop/RA/Scripts/XD7-DC1-Config.ps1"
