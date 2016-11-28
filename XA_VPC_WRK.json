@@ -266,8 +266,50 @@
                         ]
                },
 				"CFNsetup":{
-					"files":{
-					},
+					"files" : {
+                            "c:\\cfn\\cfn-hup.conf" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "[main]\n",
+                                            "stack=",
+                                            {
+                                                "Ref" : "AWS::StackId"
+                                            },
+                                            "\n",
+                                            "region=",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "[cfn-auto-reloader-hook]\n",
+                                            "triggers=post.update\n",
+                                            "path=Resources.XA7WORKER.Metadata.AWS::CloudFormation::Init\n",
+                                            "action=cfn-init.exe -v -c config -s ",
+                                            {
+                                                "Ref" : "AWS::StackId"
+                                            },
+                                            " -r XA7WORKER",
+                                            " --region ",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            }
+                        },
 					"services" : {
                             "windows" : {
                                 "cfn-hup" : {
@@ -576,7 +618,7 @@
                         {
                            "Ref":"AWS::StackName"
                         },
-                        " -r XAWORKER ",
+                        " -r XA7WORKER ",
                         " --access-key ",
                         {
                            "Ref":"IAMUserAccessKey"
