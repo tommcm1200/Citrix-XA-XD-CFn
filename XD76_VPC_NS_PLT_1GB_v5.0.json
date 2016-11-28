@@ -20,13 +20,6 @@
 			"AllowedValues" : [ "m3.large", "m3.xlarge", "m3.2xlarge" ],
 			"ConstraintDescription" : "Only EBS Optimized instance types m3.large, m3.xlarge, and m3.2xlarge allowed"
 		},
-		"CBVPXInstanceType" : {
-			"Description" : "Amazon EC2 instance type for the CloudBridge VPX Instances",
-			"Type" : "String",
-			"Default" : "m3.large",
-			"AllowedValues" : [ "m3.large", "m3.xlarge", "m3.2xlarge", "c3.xlarge"],
-			"ConstraintDescription" : "Only m1.large instance type allowed"
-		},
 		"NS1VPXNameAZ1" : {
 			"Description" : "Host name of the Primary NetScaler located in AZ1 ",
 			"Type" : "String",
@@ -58,23 +51,7 @@
 			"MinLength" : "1",
 			"MaxLength" : "15",
 			"AllowedPattern" : "[a-zA-Z0-9]+"
-		},		
-		"CBVPXNameAZ1" : {
-			"Description" : "Host name of the CloudBridge VPX located in AZ1 ",
-			"Type" : "String",
-			"Default" : "CBVPXAZ1",
-			"MinLength" : "1",
-			"MaxLength" : "15",
-			"AllowedPattern" : "[a-zA-Z0-9]+"
-		},
-		"CBVPXNameAZ2" : {
-			"Description" : "Host name of the Branch Repeater located in AZ2",
-			"Type" : "String",
-			"Default" : "CBVPXAZ2",
-			"MinLength" : "1",
-			"MaxLength" : "15",
-			"AllowedPattern" : "[a-zA-Z0-9]+"
-		},		
+		},			
 		"DMZ1IP" : {
 			"Description" : "Fixed private IP for the NetScaler ENI located in the DMZ in AZ1",
 			"Type" : "String",
@@ -100,20 +77,10 @@
 			"Type" : "String",
 			"Default" : "10.16.3.10"
 		},
-		"Infra1CBIP" : {
-			"Description" : "Fixed private IP for the CloudBridge VPX located in the Infrastructure subnet in AZ1",
-			"Type" : "String",
-			"Default" : "10.16.3.11"
-		},
 		"Infra2MIP" : {
 			"Description" : "Fixed private IP (MIP) for the ENI located in the Infrastructure subnet in AZ2",
 			"Type" : "String",
 			"Default" : "10.16.4.10"
-		},
-		"Infra2CBIP" : {
-			"Description" : "Fixed private IP for the CloudBridge VPX located in the Infrastructure subnet in AZ2",
-			"Type" : "String",
-			"Default" : "10.16.4.11"
 		},
 		"NS1AZ1NSIP" : {
 			"Description" : "Fixed private NetScaler IP (NSIP) for the ENI of the primary NetScaler located in the NetScaler subnet in AZ1",
@@ -176,15 +143,6 @@
             ],
             "Default"       : "Single"
         },
-        "NSCB"						: {
-            "Description" : "Enable CloudBridge VPX per AZ to accelerate traffic traversing the Cloud Connector. Options include either \"Enable\" or \"Disable\"",
-            "Type"        : "String",
-            "AllowedValues" : [
-                "Enable",
-                "Disable"
-            ],
-            "Default"       : "Enable"
-        },
 		"NS1Subnet" : {
 			"Description" : "ID of the NetScaler Subnet located in AZ1",
 			"Type" : "String"
@@ -201,16 +159,6 @@
 			"m3.2xlarge"	: { "Arch" : "64" },
 			"c3.xlarge"		: { "Arch" : "64" }
 		},
-		"AWSRegionArchCBAMI" : {
-			"us-east-1"      : {"64" : "ami-28a9cb40"},
-			"us-west-2"      : {"64" : "ami-c57626f5"},
-			"us-west-1"      : {"64" : "ami-81534ec4"},
-			"eu-west-1"      : {"64" : "ami-843b82f3"},
-			"ap-southeast-1" : {"64" : "ami-cde6c99f"},
-			"ap-southeast-2" : {"64" : "ami-11244f2b"},
-			"ap-northeast-1" : {"64" : "ami-36969837"},
-			"sa-east-1"      : {"64" : "ami-95dd6e88"}
-		},
 		"AWSRegionArchNSAMI" : {
 			"us-east-1"      : {"64" : "ami-b60f60de"},
 			"us-west-2"      : {"64" : "ami-ed396add"},
@@ -223,7 +171,6 @@
 		}
 	},
 	"Conditions" : {
-		"CreateCBResources"		: {"Fn::Equals" : [{"Ref" : "NSCB"}, "Enable"]},
 		"CreateNSHAResources"	: {"Fn::Equals" : [{"Ref" : "NSHA"}, "HA Pair"]}
 	},
 
@@ -618,37 +565,7 @@
 				} 
 			}
 		},
-		"NSAZ1CBInstance": {
-			"Type": "AWS::EC2::Instance",
-			"Condition"	:	"CreateCBResources",
-			"Properties": {
- 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchCBAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "CBVPXInstanceType" }, "Arch" ] } ] },
-				"InstanceType": {"Ref": "CBVPXInstanceType"},
-				"SubnetId" : { "Ref" : "Infra1Subnet" },
-				"Tags" : [ {
-					"Key" : "Name",
-					"Value" : { "Ref" : "CBVPXNameAZ1" }
-				} ],
-				"SecurityGroupIds" : [ {"Ref" : "AllOpenSecurityGroup"} ],
-				"PrivateIpAddress" : { "Ref" : "Infra1CBIP" }
-			}
-		},
-		"NSAZ2CBInstance": {
-			"Type": "AWS::EC2::Instance",
-			"Condition"	:	"CreateCBResources",
-			"Properties": {
- 				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArchCBAMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "CBVPXInstanceType" }, "Arch" ] } ] },
-				"InstanceType": { "Ref": "CBVPXInstanceType" },
-				"SubnetId" : { "Ref" : "Infra2Subnet" },
-				"Tags": [ {
-					"Key": "Name",
-					"Value": { "Ref" : "CBVPXNameAZ2"}
-				} ],
-				"SecurityGroupIds" :  [ { "Ref": "AllOpenSecurityGroup"}],
-				"PrivateIpAddress" : { "Ref" : "Infra2CBIP" }
-			}
-		},
-		"AZ1NSEipSnip": {
+			"AZ1NSEipSnip": {
 			"Type": "AWS::EC2::EIP",
 			"Properties": {
 				"Domain": "vpc"
